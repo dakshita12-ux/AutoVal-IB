@@ -1,0 +1,1101 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AutoVal-IB: Investment Banking Valuation & M&A Engine</title>
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- Font Awesome Icons -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <!-- Chart.js for Financial Visualizations -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <!-- Google Fonts -->
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+    <script>
+        tailwind.config = {
+            darkMode: 'class',
+            theme: {
+                extend: {
+                    colors: {
+                        bofa: {
+                            red: '#D6001C',
+                            darkred: '#9B0013',
+                            navy: '#0C2340',
+                            slate: '#1E293B',
+                            lightbg: '#F8FAFC'
+                        }
+                    },
+                    fontFamily: {
+                        sans: ['Inter', 'sans-serif'],
+                        mono: ['JetBrains Mono', 'monospace']
+                    }
+                }
+            }
+        }
+    </script>
+    <style>
+        body { font-family: 'Inter', sans-serif; }
+        .code-font { font-family: 'JetBrains Mono', monospace; }
+        .tab-btn.active {
+            border-bottom: 3px solid #D6001C;
+            color: #D6001C;
+            font-weight: 600;
+        }
+        /* Custom Scrollbar */
+        ::-webkit-scrollbar {
+            width: 6px;
+            height: 6px;
+        }
+        ::-webkit-scrollbar-track {
+            background: #f1f5f9;
+        }
+        ::-webkit-scrollbar-thumb {
+            background: #cbd5e1;
+            border-radius: 4px;
+        }
+        ::-webkit-scrollbar-thumb:hover {
+            background: #94a3b8;
+        }
+    </style>
+</head>
+<body class="bg-slate-50 text-slate-800 antialiased min-h-screen flex flex-col">
+
+    <!-- Top Navigation Header -->
+    <header class="bg-bofa-navy text-white shadow-md sticky top-0 z-50">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+            <div class="flex items-center justify-between h-16">
+                <div class="flex items-center space-x-3">
+                    <div class="bg-bofa-red text-white p-2 rounded-lg font-bold text-xl tracking-tight flex items-center shadow">
+                        <i class="fa-solid font-mono text-sm mr-1">⚡</i> AutoVal-IB
+                    </div>
+                    <div>
+                        <h1 class="text-base font-bold tracking-wide leading-tight">Global Investment Banking Pitchbook Engine</h1>
+                        <p class="text-xs text-slate-300">Tailored for BofA IB Summer Analyst Candidate Portfolio</p>
+                    </div>
+                </div>
+
+                <!-- Navigation Tabs -->
+                <nav class="hidden md:flex space-x-6 text-sm font-medium">
+                    <button onclick="switchTab('dcf')" id="nav-dcf" class="tab-btn active py-5 px-1 transition-colors flex items-center space-x-2">
+                        <i class="fa-solid fa-chart-line"></i><span>DCF & Valuation</span>
+                    </button>
+                    <button onclick="switchTab('comps')" id="nav-comps" class="tab-btn py-5 px-1 text-slate-300 hover:text-white transition-colors flex items-center space-x-2">
+                        <i class="fa-solid fa-table-list"></i><span>Trading Comps</span>
+                    </button>
+                    <button onclick="switchTab('ma')" id="nav-ma" class="tab-btn py-5 px-1 text-slate-300 hover:text-white transition-colors flex items-center space-x-2">
+                        <i class="fa-solid fa-handshake"></i><span>M&A Accretion/Dilution</span>
+                    </button>
+                    <button onclick="switchTab('github')" id="nav-github" class="tab-btn py-5 px-1 text-slate-300 hover:text-white transition-colors flex items-center space-x-2">
+                        <i class="fa-brands fa-github"></i><span>Git Repo & Resume Specs</span>
+                    </button>
+                </nav>
+
+                <div class="flex items-center space-x-3">
+                    <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-emerald-500/20 text-emerald-300 border border-emerald-500/30">
+                        <span class="w-2 h-2 mr-1.5 bg-emerald-400 rounded-full animate-pulse"></span> Target: BofA Mumbai IB '27
+                    </span>
+                    <button onclick="exportSummaryPDF()" class="bg-bofa-red hover:bg-bofa-darkred text-white text-xs px-3 py-2 rounded-md font-semibold transition shadow flex items-center space-x-1">
+                        <i class="fa-solid fa-download"></i>
+                        <span>Export Summary</span>
+                    </button>
+                </div>
+            </div>
+        </div>
+
+        <!-- Mobile Navigation -->
+        <div class="md:hidden flex overflow-x-auto border-t border-slate-700 text-xs px-2 py-1 space-x-2 bg-slate-900">
+            <button onclick="switchTab('dcf')" class="py-2 px-3 whitespace-nowrap text-white font-medium">DCF Model</button>
+            <button onclick="switchTab('comps')" class="py-2 px-3 whitespace-nowrap text-slate-300">Trading Comps</button>
+            <button onclick="switchTab('ma')" class="py-2 px-3 whitespace-nowrap text-slate-300">M&A Model</button>
+            <button onclick="switchTab('github')" class="py-2 px-3 whitespace-nowrap text-slate-300">Git Setup & Code</button>
+        </div>
+    </header>
+
+    <!-- Main Content Area -->
+    <main class="flex-grow max-w-7xl w-full mx-auto px-4 sm:px-6 lg:px-8 py-6">
+
+        <!-- TAB 1: DCF & VALUATION MODEL -->
+        <div id="tab-dcf" class="tab-content space-y-6">
+            <!-- Header Bar -->
+            <div class="bg-white p-5 rounded-xl shadow-sm border border-slate-200 flex flex-wrap items-center justify-between gap-4">
+                <div>
+                    <span class="text-xs font-bold text-bofa-red uppercase tracking-wider">Discounted Cash Flow Model</span>
+                    <h2 class="text-2xl font-bold text-slate-900 flex items-center">
+                        <span id="target-company-name">Reliance Industries Ltd (NSE: RELIANCE)</span>
+                        <span class="ml-3 text-xs bg-slate-100 text-slate-600 px-2 py-1 rounded font-mono border border-slate-200">INR (₹ Cr)</span>
+                    </h2>
+                </div>
+                <div class="flex items-center space-x-3">
+                    <label class="text-xs font-semibold text-slate-500">Preset Target Company:</label>
+                    <select id="preset-selector" onchange="loadPresetCompany(this.value)" class="text-xs bg-slate-50 border border-slate-300 rounded-lg px-3 py-2 font-medium focus:ring-2 focus:ring-bofa-red focus:outline-none">
+                        <option value="RELIANCE">Reliance Industries (Conglomerate / Energy & Tech)</option>
+                        <option value="TATA">Tata Motors Ltd (Automotive / EV)</option>
+                        <option value="INFY">Infosys Ltd (IT Services / Tech)</option>
+                        <option value="CUSTOM">Custom Financial Parameters</option>
+                    </select>
+                </div>
+            </div>
+
+            <div class="grid grid-cols-1 lg:grid-cols-12 gap-6">
+                <!-- Left Input Controls Panel -->
+                <div class="lg:col-span-4 bg-white p-5 rounded-xl shadow-sm border border-slate-200 space-y-5">
+                    <h3 class="text-sm font-bold text-bofa-navy uppercase border-b border-slate-100 pb-2 flex items-center justify-between">
+                        <span><i class="fa-solid fa-sliders text-bofa-red mr-2"></i>Model Drivers & Assumptions</span>
+                        <button onclick="recalculateAll()" class="text-xs text-bofa-red font-semibold hover:underline">Reset</button>
+                    </h3>
+
+                    <!-- Capital Structure Inputs -->
+                    <div class="space-y-3">
+                        <p class="text-xs font-bold text-slate-400 uppercase tracking-wider">1. Capital Structure & CAPM</p>
+                        
+                        <div>
+                            <div class="flex justify-between text-xs mb-1 font-medium">
+                                <span class="text-slate-600">Current Share Price (₹):</span>
+                                <span class="font-mono font-bold text-slate-900" id="val-price">2,950</span>
+                            </div>
+                            <input type="range" id="input-price" min="500" max="5000" step="25" value="2950" oninput="updateDCF()" class="w-full accent-bofa-red h-1.5 bg-slate-200 rounded-lg cursor-pointer">
+                        </div>
+
+                        <div>
+                            <div class="flex justify-between text-xs mb-1 font-medium">
+                                <span class="text-slate-600">Risk-Free Rate (Rf - 10Y G-Sec):</span>
+                                <span class="font-mono font-bold text-slate-900" id="val-rf">7.10%</span>
+                            </div>
+                            <input type="range" id="input-rf" min="4.0" max="10.0" step="0.1" value="7.1" oninput="updateDCF()" class="w-full accent-bofa-red h-1.5 bg-slate-200 rounded-lg cursor-pointer">
+                        </div>
+
+                        <div>
+                            <div class="flex justify-between text-xs mb-1 font-medium">
+                                <span class="text-slate-600">Equity Beta (β):</span>
+                                <span class="font-mono font-bold text-slate-900" id="val-beta">1.15</span>
+                            </div>
+                            <input type="range" id="input-beta" min="0.5" max="2.0" step="0.05" value="1.15" oninput="updateDCF()" class="w-full accent-bofa-red h-1.5 bg-slate-200 rounded-lg cursor-pointer">
+                        </div>
+
+                        <div>
+                            <div class="flex justify-between text-xs mb-1 font-medium">
+                                <span class="text-slate-600">Equity Risk Premium (ERP):</span>
+                                <span class="font-mono font-bold text-slate-900" id="val-erp">5.50%</span>
+                            </div>
+                            <input type="range" id="input-erp" min="4.0" max="8.0" step="0.25" value="5.5" oninput="updateDCF()" class="w-full accent-bofa-red h-1.5 bg-slate-200 rounded-lg cursor-pointer">
+                        </div>
+
+                        <div class="pt-2 border-t border-slate-100 grid grid-cols-2 gap-2 text-xs">
+                            <div class="bg-slate-50 p-2 rounded border border-slate-100">
+                                <span class="text-slate-500 block text-[10px]">Cost of Equity (Ke)</span>
+                                <span class="font-mono font-bold text-bofa-navy text-sm" id="calc-ke">13.43%</span>
+                            </div>
+                            <div class="bg-slate-50 p-2 rounded border border-slate-100">
+                                <span class="text-slate-500 block text-[10px]">Calculated WACC</span>
+                                <span class="font-mono font-bold text-bofa-red text-sm" id="calc-wacc">11.18%</span>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- FCF Projection Growth Rates -->
+                    <div class="space-y-3 pt-2 border-t border-slate-100">
+                        <p class="text-xs font-bold text-slate-400 uppercase tracking-wider">2. FCF Forecast & Terminal Drivers</p>
+                        
+                        <div>
+                            <div class="flex justify-between text-xs mb-1 font-medium">
+                                <span class="text-slate-600">Base Year Free Cash Flow (FCF0 ₹ Cr):</span>
+                                <span class="font-mono font-bold text-slate-900" id="val-fcf0">42,500</span>
+                            </div>
+                            <input type="range" id="input-fcf0" min="5000" max="100000" step="1000" value="42500" oninput="updateDCF()" class="w-full accent-bofa-red h-1.5 bg-slate-200 rounded-lg cursor-pointer">
+                        </div>
+
+                        <div>
+                            <div class="flex justify-between text-xs mb-1 font-medium">
+                                <span class="text-slate-600">5-Yr Revenue / FCF CAGR:</span>
+                                <span class="font-mono font-bold text-slate-900" id="val-growth">12.5%</span>
+                            </div>
+                            <input type="range" id="input-growth" min="2.0" max="25.0" step="0.5" value="12.5" oninput="updateDCF()" class="w-full accent-bofa-red h-1.5 bg-slate-200 rounded-lg cursor-pointer">
+                        </div>
+
+                        <div>
+                            <div class="flex justify-between text-xs mb-1 font-medium">
+                                <span class="text-slate-600">Terminal Growth Rate (g):</span>
+                                <span class="font-mono font-bold text-slate-900" id="val-tg">4.0%</span>
+                            </div>
+                            <input type="range" id="input-tg" min="1.5" max="6.0" step="0.25" value="4.0" oninput="updateDCF()" class="w-full accent-bofa-red h-1.5 bg-slate-200 rounded-lg cursor-pointer">
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Right Analytics & Output Display Panel -->
+                <div class="lg:col-span-8 space-y-6">
+                    <!-- Valuation Headline Summary Cards -->
+                    <div class="grid grid-cols-1 sm:grid-cols-3 gap-4">
+                        <div class="bg-white p-4 rounded-xl border border-slate-200 shadow-sm relative overflow-hidden">
+                            <div class="absolute top-0 right-0 w-2 h-full bg-slate-300"></div>
+                            <p class="text-xs font-semibold text-slate-500 uppercase">Implied Enterprise Value</p>
+                            <p class="text-xl font-bold font-mono text-slate-900 mt-1" id="card-ev">₹ 21,45,280 Cr</p>
+                            <p class="text-[11px] text-slate-400 mt-1">PV of FCFs + PV of TV</p>
+                        </div>
+
+                        <div class="bg-white p-4 rounded-xl border border-slate-200 shadow-sm relative overflow-hidden">
+                            <div class="absolute top-0 right-0 w-2 h-full bg-bofa-navy"></div>
+                            <p class="text-xs font-semibold text-slate-500 uppercase">Implied Equity Value</p>
+                            <p class="text-xl font-bold font-mono text-bofa-navy mt-1" id="card-eq-val">₹ 18,92,100 Cr</p>
+                            <p class="text-[11px] text-slate-400 mt-1">Less Net Debt (₹ 2,53,180 Cr)</p>
+                        </div>
+
+                        <div id="implied-price-card" class="bg-white p-4 rounded-xl border-2 border-emerald-500 shadow-sm relative overflow-hidden bg-emerald-50/30">
+                            <div class="flex justify-between items-start">
+                                <p class="text-xs font-bold text-emerald-800 uppercase">Implied Share Price</p>
+                                <span id="upside-badge" class="px-2 py-0.5 rounded text-[10px] font-bold bg-emerald-100 text-emerald-800 border border-emerald-300">+12.4% Upside</span>
+                            </div>
+                            <p class="text-2xl font-extrabold font-mono text-emerald-900 mt-1" id="card-implied-price">₹ 3,316</p>
+                            <p class="text-[11px] text-slate-500 mt-1">vs Current Price: <span class="font-mono font-semibold" id="card-curr-price">₹ 2,950</span></p>
+                        </div>
+                    </div>
+
+                    <!-- 5-Year Cash Flow Projections Table -->
+                    <div class="bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden">
+                        <div class="p-4 border-b border-slate-100 flex justify-between items-center bg-slate-50/50">
+                            <h4 class="text-xs font-bold text-slate-700 uppercase tracking-wider flex items-center">
+                                <i class="fa-solid fa-table mr-2 text-bofa-red"></i>5-Year Unlevered Free Cash Flow (FCFF) Forecast
+                            </h4>
+                            <span class="text-[11px] text-slate-400 font-mono">Figures in ₹ Crore</span>
+                        </div>
+                        <div class="overflow-x-auto">
+                            <table class="w-full text-xs text-left">
+                                <thead class="bg-slate-100/80 text-slate-600 font-bold border-b border-slate-200">
+                                    <tr>
+                                        <th class="py-2.5 px-3">Metric</th>
+                                        <th class="py-2.5 px-3 text-right">Year 1</th>
+                                        <th class="py-2.5 px-3 text-right">Year 2</th>
+                                        <th class="py-2.5 px-3 text-right">Year 3</th>
+                                        <th class="py-2.5 px-3 text-right">Year 4</th>
+                                        <th class="py-2.5 px-3 text-right">Year 5</th>
+                                        <th class="py-2.5 px-3 text-right bg-slate-200/50">Terminal</th>
+                                    </tr>
+                                </thead>
+                                <tbody class="divide-y divide-slate-100 font-mono" id="dcf-table-body">
+                                    <!-- Dynamic Rows via JS -->
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+
+                    <!-- Valuation Sensitivity Table (WACC vs Terminal Growth) -->
+                    <div class="bg-white p-5 rounded-xl border border-slate-200 shadow-sm">
+                        <div class="flex items-center justify-between mb-3">
+                            <div>
+                                <h4 class="text-xs font-bold text-slate-800 uppercase tracking-wider flex items-center">
+                                    <i class="fa-solid fa-border-all mr-2 text-bofa-red"></i>Valuation Sensitivity Matrix: Implied Share Price (₹)
+                                </h4>
+                                <p class="text-[11px] text-slate-500">Cross-analyzing Discount Rate (WACC) vs Perpetual Terminal Growth Rate (g)</p>
+                            </div>
+                            <span class="text-[10px] bg-slate-100 text-slate-600 px-2 py-1 rounded font-mono border">2D Heatmap Matrix</span>
+                        </div>
+
+                        <div class="overflow-x-auto">
+                            <table class="w-full text-xs text-center border-collapse">
+                                <thead>
+                                    <tr id="sensitivity-header">
+                                        <!-- Dynamic JS Header -->
+                                    </tr>
+                                </thead>
+                                <tbody id="sensitivity-body" class="font-mono text-xs">
+                                    <!-- Dynamic Heatmap Rows via JS -->
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- TAB 2: TRADING COMPS & PEER BENCHMARKING -->
+        <div id="tab-comps" class="tab-content hidden space-y-6">
+            <div class="bg-white p-5 rounded-xl shadow-sm border border-slate-200 flex flex-wrap items-center justify-between gap-4">
+                <div>
+                    <span class="text-xs font-bold text-bofa-red uppercase tracking-wider">Comparable Company Analysis (Comps)</span>
+                    <h2 class="text-2xl font-bold text-slate-900">Peer Valuation & Relative Multiples Benchmarking</h2>
+                </div>
+                <div class="flex items-center space-x-2">
+                    <button onclick="addPeerRow()" class="bg-slate-800 hover:bg-slate-900 text-white text-xs px-3 py-2 rounded-lg font-semibold transition flex items-center space-x-1">
+                        <i class="fa-solid fa-plus"></i><span>Add Peer Company</span>
+                    </button>
+                </div>
+            </div>
+
+            <!-- Peer Comparison Table -->
+            <div class="bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden">
+                <div class="p-4 border-b border-slate-100 flex justify-between items-center bg-slate-50">
+                    <h4 class="text-xs font-bold text-slate-700 uppercase tracking-wider">Peer Group Multiples Summary</h4>
+                    <span class="text-xs text-slate-400">Click any cell to edit peer financial figures</span>
+                </div>
+                <div class="overflow-x-auto">
+                    <table class="w-full text-xs text-left" id="comps-table">
+                        <thead class="bg-slate-100 text-slate-700 font-bold border-b border-slate-200">
+                            <tr>
+                                <th class="py-3 px-3">Company Name</th>
+                                <th class="py-3 px-3 text-right">Market Cap (₹ Cr)</th>
+                                <th class="py-3 px-3 text-right">Enterprise Value (EV)</th>
+                                <th class="py-3 px-3 text-right">Revenue (₹ Cr)</th>
+                                <th class="py-3 px-3 text-right">EBITDA (₹ Cr)</th>
+                                <th class="py-3 px-3 text-right bg-blue-50 text-bofa-navy">EV / Revenue</th>
+                                <th class="py-3 px-3 text-right bg-blue-50 text-bofa-navy">EV / EBITDA</th>
+                                <th class="py-3 px-3 text-right bg-emerald-50 text-emerald-900">P / E Multiple</th>
+                                <th class="py-3 px-3 text-center">Action</th>
+                            </tr>
+                        </thead>
+                        <tbody class="divide-y divide-slate-100 font-mono" id="comps-tbody">
+                            <!-- Dynamic Comps Rows via JS -->
+                        </tbody>
+                        <tfoot class="bg-slate-100/90 font-mono font-bold text-slate-800 border-t-2 border-slate-300" id="comps-tfoot">
+                            <!-- Summary Statistics (Mean, Median) via JS -->
+                        </tfoot>
+                    </table>
+                </div>
+            </div>
+
+            <!-- Comps Visualizations -->
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                <div class="bg-white p-5 rounded-xl border border-slate-200 shadow-sm">
+                    <h4 class="text-xs font-bold text-slate-700 uppercase tracking-wider mb-4">EV / EBITDA Multiple Comparison</h4>
+                    <div class="h-64">
+                        <canvas id="compsEbitdaChart"></canvas>
+                    </div>
+                </div>
+                <div class="bg-white p-5 rounded-xl border border-slate-200 shadow-sm">
+                    <h4 class="text-xs font-bold text-slate-700 uppercase tracking-wider mb-4">P / E Valuation Multiple Benchmarking</h4>
+                    <div class="h-64">
+                        <canvas id="compsPeChart"></canvas>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- TAB 3: M&A ACCRETION / DILUTION MODEL -->
+        <div id="tab-ma" class="tab-content hidden space-y-6">
+            <div class="bg-white p-5 rounded-xl shadow-sm border border-slate-200 flex flex-wrap items-center justify-between gap-4">
+                <div>
+                    <span class="text-xs font-bold text-bofa-red uppercase tracking-wider">M&A Transaction Advisory</span>
+                    <h2 class="text-2xl font-bold text-slate-900">Acquisition Accretion / Dilution Model</h2>
+                </div>
+                <div class="bg-slate-100 text-slate-700 text-xs px-3 py-1.5 rounded-lg border font-mono">
+                    Transaction Structure Evaluator
+                </div>
+            </div>
+
+            <div class="grid grid-cols-1 lg:grid-cols-12 gap-6">
+                <!-- Left Control Panel: Deal Structuring -->
+                <div class="lg:col-span-5 bg-white p-5 rounded-xl border border-slate-200 shadow-sm space-y-5">
+                    <h3 class="text-sm font-bold text-bofa-navy uppercase border-b border-slate-100 pb-2">
+                        <i class="fa-solid fa-handshake-simple text-bofa-red mr-2"></i>Deal Terms & Offer Structuring
+                    </h3>
+
+                    <!-- Acquirer Stats -->
+                    <div class="space-y-3 bg-slate-50 p-3 rounded-lg border border-slate-200">
+                        <p class="text-xs font-bold text-bofa-navy uppercase">1. Buyer / Acquirer Profile (BofA Client)</p>
+                        <div class="grid grid-cols-2 gap-2 text-xs">
+                            <div>
+                                <label class="text-slate-500 block">Acquirer Net Income (₹ Cr):</label>
+                                <input type="number" id="ma-acq-ni" value="79000" onchange="updateMAModel()" class="w-full bg-white border border-slate-300 rounded px-2 py-1 font-mono font-bold">
+                            </div>
+                            <div>
+                                <label class="text-slate-500 block">Shares Outstanding (Cr):</label>
+                                <input type="number" id="ma-acq-shares" value="676" onchange="updateMAModel()" class="w-full bg-white border border-slate-300 rounded px-2 py-1 font-mono font-bold">
+                            </div>
+                            <div>
+                                <label class="text-slate-500 block">Acquirer Share Price (₹):</label>
+                                <input type="number" id="ma-acq-price" value="2950" onchange="updateMAModel()" class="w-full bg-white border border-slate-300 rounded px-2 py-1 font-mono font-bold">
+                            </div>
+                            <div>
+                                <label class="text-slate-500 block">Standalone EPS (₹):</label>
+                                <input type="text" id="ma-acq-eps" value="₹ 116.86" disabled class="w-full bg-slate-100 border border-slate-200 rounded px-2 py-1 font-mono text-slate-500">
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Target Company Stats -->
+                    <div class="space-y-3 bg-slate-50 p-3 rounded-lg border border-slate-200">
+                        <p class="text-xs font-bold text-bofa-navy uppercase">2. Target Company Profile</p>
+                        <div class="grid grid-cols-2 gap-2 text-xs">
+                            <div>
+                                <label class="text-slate-500 block">Target Net Income (₹ Cr):</label>
+                                <input type="number" id="ma-tgt-ni" value="8500" onchange="updateMAModel()" class="w-full bg-white border border-slate-300 rounded px-2 py-1 font-mono font-bold">
+                            </div>
+                            <div>
+                                <label class="text-slate-500 block">Target Standalone Equity Val:</label>
+                                <input type="number" id="ma-tgt-val" value="110000" onchange="updateMAModel()" class="w-full bg-white border border-slate-300 rounded px-2 py-1 font-mono font-bold">
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Offer Terms -->
+                    <div class="space-y-3">
+                        <p class="text-xs font-bold text-slate-400 uppercase tracking-wider">3. Acquisition Terms & Synergies</p>
+
+                        <div>
+                            <div class="flex justify-between text-xs mb-1 font-medium">
+                                <span class="text-slate-600">Offer Premium over Target Value:</span>
+                                <span class="font-mono font-bold text-slate-900" id="val-ma-premium">25.0%</span>
+                            </div>
+                            <input type="range" id="input-ma-premium" min="0" max="50" step="2.5" value="25" oninput="updateMAModel()" class="w-full accent-bofa-red h-1.5 bg-slate-200 rounded-lg cursor-pointer">
+                        </div>
+
+                        <div>
+                            <div class="flex justify-between text-xs mb-1 font-medium">
+                                <span class="text-slate-600">Consideration Mix (% Debt / Cash Financed):</span>
+                                <span class="font-mono font-bold text-bofa-navy" id="val-ma-cashmix">60.0% Cash / 40.0% Stock</span>
+                            </div>
+                            <input type="range" id="input-ma-cashmix" min="0" max="100" step="5" value="60" oninput="updateMAModel()" class="w-full accent-bofa-red h-1.5 bg-slate-200 rounded-lg cursor-pointer">
+                        </div>
+
+                        <div>
+                            <div class="flex justify-between text-xs mb-1 font-medium">
+                                <span class="text-slate-600">New Debt Interest Rate:</span>
+                                <span class="font-mono font-bold text-slate-900" id="val-ma-debt-rate">8.50%</span>
+                            </div>
+                            <input type="range" id="input-ma-debt-rate" min="5.0" max="14.0" step="0.25" value="8.5" oninput="updateMAModel()" class="w-full accent-bofa-red h-1.5 bg-slate-200 rounded-lg cursor-pointer">
+                        </div>
+
+                        <div>
+                            <div class="flex justify-between text-xs mb-1 font-medium">
+                                <span class="text-slate-600">Pre-Tax Synergies Realized (₹ Cr):</span>
+                                <span class="font-mono font-bold text-emerald-700" id="val-ma-synergies">₹ 2,500 Cr</span>
+                            </div>
+                            <input type="range" id="input-ma-synergies" min="0" max="10000" step="250" value="2500" oninput="updateMAModel()" class="w-full accent-bofa-red h-1.5 bg-slate-200 rounded-lg cursor-pointer">
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Right Results Panel -->
+                <div class="lg:col-span-7 space-y-6">
+                    <!-- Impact Callout Banner -->
+                    <div id="ma-result-banner" class="p-5 rounded-xl border-2 bg-emerald-50 border-emerald-500 shadow-sm flex items-center justify-between">
+                        <div>
+                            <span class="text-xs font-bold uppercase tracking-wider text-emerald-800">Transaction Output</span>
+                            <h3 class="text-2xl font-extrabold text-emerald-950 mt-1" id="ma-verdict-title">ACCRETIVE TRANSACTION</h3>
+                            <p class="text-xs text-emerald-800 mt-1" id="ma-verdict-desc">Post-merger Earnings Per Share increases due to cost synergies and optimal cash/stock consideration mix.</p>
+                        </div>
+                        <div class="text-right">
+                            <span class="text-3xl font-extrabold font-mono text-emerald-700" id="ma-eps-pct">+4.82%</span>
+                            <span class="block text-[11px] text-emerald-800 font-semibold">Pro-Forma EPS Impact</span>
+                        </div>
+                    </div>
+
+                    <!-- Detailed EPS Bridge Table -->
+                    <div class="bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden">
+                        <div class="p-4 border-b border-slate-100 bg-slate-50 font-bold text-xs text-slate-700 uppercase">
+                            Pro-Forma Net Income & EPS Reconciliation Bridge
+                        </div>
+                        <table class="w-full text-xs text-left">
+                            <tbody class="divide-y divide-slate-100 font-mono">
+                                <tr>
+                                    <td class="py-2.5 px-4 text-slate-600">Acquirer Standalone Net Income</td>
+                                    <td class="py-2.5 px-4 text-right font-bold" id="ma-bridge-acq-ni">₹ 79,000 Cr</td>
+                                </tr>
+                                <tr>
+                                    <td class="py-2.5 px-4 text-slate-600">(+) Target Standalone Net Income</td>
+                                    <td class="py-2.5 px-4 text-right font-bold text-emerald-700" id="ma-bridge-tgt-ni">+ ₹ 8,500 Cr</td>
+                                </tr>
+                                <tr>
+                                    <td class="py-2.5 px-4 text-slate-600">(+) After-Tax Synergies Realized (25% Tax)</td>
+                                    <td class="py-2.5 px-4 text-right font-bold text-emerald-700" id="ma-bridge-syn">+ ₹ 1,875 Cr</td>
+                                </tr>
+                                <tr>
+                                    <td class="py-2.5 px-4 text-slate-600">(-) New After-Tax Debt Interest Expense</td>
+                                    <td class="py-2.5 px-4 text-right font-bold text-bofa-red" id="ma-bridge-interest">- ₹ 5,254 Cr</td>
+                                </tr>
+                                <tr class="bg-slate-50 font-bold border-t-2 border-slate-200 text-slate-900">
+                                    <td class="py-3 px-4">Pro-Forma Combined Net Income</td>
+                                    <td class="py-3 px-4 text-right text-sm" id="ma-bridge-combined-ni">₹ 84,121 Cr</td>
+                                </tr>
+                                <tr>
+                                    <td class="py-2.5 px-4 text-slate-600">Pro-Forma Diluted Share Count</td>
+                                    <td class="py-2.5 px-4 text-right font-bold" id="ma-bridge-shares">688.4 Cr Shares</td>
+                                </tr>
+                                <tr class="bg-emerald-100/50 font-bold text-emerald-950">
+                                    <td class="py-3 px-4 text-sm">Pro-Forma EPS vs Standalone EPS</td>
+                                    <td class="py-3 px-4 text-right text-base text-emerald-700" id="ma-bridge-final-eps">₹ 122.20 vs ₹ 116.86</td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
+
+                    <!-- M&A Visualization Chart -->
+                    <div class="bg-white p-5 rounded-xl border border-slate-200 shadow-sm">
+                        <h4 class="text-xs font-bold text-slate-700 uppercase tracking-wider mb-4">EPS Comparison: Standalone vs Combined Pro-Forma</h4>
+                        <div class="h-56">
+                            <canvas id="maEpsChart"></canvas>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- TAB 4: GIT REPO & RESUME SPECS -->
+        <div id="tab-github" class="tab-content hidden space-y-6">
+            <div class="bg-white p-5 rounded-xl shadow-sm border border-slate-200 flex flex-wrap items-center justify-between gap-4">
+                <div>
+                    <span class="text-xs font-bold text-bofa-red uppercase tracking-wider">Turnkey Candidate Assets</span>
+                    <h2 class="text-2xl font-bold text-slate-900">GitHub Repository Setup & Resume Specification</h2>
+                </div>
+                <button onclick="copyToClipboard('readme-content')" class="bg-bofa-navy hover:bg-slate-800 text-white text-xs px-4 py-2 rounded-lg font-semibold transition flex items-center space-x-1">
+                    <i class="fa-solid fa-copy"></i><span>Copy README Markdown</span>
+                </button>
+            </div>
+
+            <!-- Resume Bullets Callout Box -->
+            <div class="bg-bofa-navy text-white p-6 rounded-xl shadow-md border border-slate-800 space-y-4">
+                <div class="flex items-center space-x-2 text-bofa-red font-bold text-xs uppercase tracking-wider">
+                    <i class="fa-solid fa-file-lines text-sm"></i>
+                    <span>Ready-To-Use Resume Bullet Points (Bank of America IB Analyst Format)</span>
+                </div>
+                <div class="bg-slate-900/90 p-4 rounded-lg font-mono text-xs leading-relaxed space-y-2 border border-slate-700 select-all">
+                    <p class="text-emerald-400 font-bold">PROJECTS</p>
+                    <p class="font-bold text-slate-200">AutoVal-IB: Automated DCF Valuation & M&A Accretion/Dilution Engine | Python, SQL, Financial APIs <span class="text-slate-400 font-normal">[github.com/yourusername/AutoVal-IB]</span></p>
+                    <p class="text-slate-300">• Built an automated financial modeling engine extracting 3-statement data for Indian conglomerates; executed 5-year Unlevered Free Cash Flow (FCFF) projections and terminal value valuations.</p>
+                    <p class="text-slate-300">• Programmed dynamic Capital Asset Pricing Model (CAPM) framework to compute weighted average cost of capital (WACC) and constructed 2D sensitivity matrices analyzing stock intrinsic value under varying macroeconomic scenarios.</p>
+                    <p class="text-slate-300">• Engineered a strategic M&A transaction model simulating deal financing mechanics (Cash vs Stock mix, debt pricing, synergies) to evaluate post-merger pro-forma accretion/dilution EPS impact.</p>
+                    <p class="text-slate-300">• Developed an interactive pitchbook dashboard featuring peer group trading comps (EV/EBITDA, P/E ratios) and automated valuation benchmarking visualizer.</p>
+                </div>
+            </div>
+
+            <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                <!-- Git Command Steps -->
+                <div class="bg-white p-5 rounded-xl border border-slate-200 shadow-sm space-y-4">
+                    <h3 class="text-sm font-bold text-slate-800 uppercase flex items-center">
+                        <i class="fa-brands fa-git-alt text-orange-600 mr-2 text-base"></i>5-Minute Push To Your GitHub
+                    </h3>
+                    <div class="bg-slate-900 text-slate-200 p-4 rounded-lg code-font text-xs space-y-2 overflow-x-auto">
+                        <p class="text-slate-400"># 1. Create a folder and initialize git</p>
+                        <p><span class="text-bofa-red">mkdir</span> AutoVal-IB && <span class="text-bofa-red">cd</span> AutoVal-IB</p>
+                        <p><span class="text-bofa-red">git</span> init</p>
+                        <br>
+                        <p class="text-slate-400"># 2. Add files and initial commit</p>
+                        <p><span class="text-bofa-red">git</span> add .</p>
+                        <p><span class="text-bofa-red">git</span> commit -m <span class="text-emerald-400">"Initial commit: BofA Investment Banking Valuation & M&A Engine"</span></p>
+                        <br>
+                        <p class="text-slate-400"># 3. Link to your GitHub repo and push</p>
+                        <p><span class="text-bofa-red">git</span> branch -M main</p>
+                        <p><span class="text-bofa-red">git</span> remote add origin https://github.com/YOUR_USERNAME/AutoVal-IB.git</p>
+                        <p><span class="text-bofa-red">git</span> push -u origin main</p>
+                    </div>
+                </div>
+
+                <!-- Python Backend Script Snippet -->
+                <div class="bg-white p-5 rounded-xl border border-slate-200 shadow-sm space-y-4">
+                    <h3 class="text-sm font-bold text-slate-800 uppercase flex items-center">
+                        <i class="fa-brands fa-python text-blue-600 mr-2 text-base"></i>Standalone Python DCF Script (`dcf_engine.py`)
+                    </h3>
+                    <div class="bg-slate-900 text-slate-200 p-4 rounded-lg code-font text-[11px] h-64 overflow-y-auto space-y-1">
+<pre class="text-slate-300">import yfinance as yf
+import pandas as pd
+
+def run_ib_dcf(ticker, rf=0.071, erp=0.055, tg=0.04):
+    """
+    Investment Banking Standard DCF Valuation Engine
+    """
+    stock = yf.Ticker(ticker)
+    info = stock.info
+    
+    # 1. Extract CAPM Inputs
+    beta = info.get('beta', 1.0)
+    ke = rf + (beta * erp)
+    kd = 0.08  # Pre-tax cost of debt estimate
+    tax_rate = 0.25
+    
+    market_cap = info.get('marketCap', 1)
+    total_debt = info.get('totalDebt', 0)
+    wacc = (market_cap / (market_cap + total_debt)) * ke + \
+           (total_debt / (market_cap + total_debt)) * kd * (1 - tax_rate)
+           
+    # 2. Free Cash Flow Projections
+    fcf_base = info.get('freeCashflow', 425000000000)
+    cagr = 0.125
+    fcf_proj = [fcf_base * ((1 + cagr) ** i) for i in range(1, 6)]
+    
+    # 3. Present Value & Terminal Value
+    pv_fcfs = sum([fcf / ((1 + wacc) ** i) for i, fcf in enumerate(fcf_proj, 1)])
+    tv = (fcf_proj[-1] * (1 + tg)) / (wacc - tg)
+    pv_tv = tv / ((1 + wacc) ** 5)
+    
+    ev = pv_fcfs + pv_tv
+    eq_val = ev - total_debt
+    implied_price = eq_val / info.get('sharesOutstanding', 1)
+    
+    return {"Enterprise_Value": ev, "Equity_Value": eq_val, "Implied_Price": implied_price, "WACC": wacc}
+</pre>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Full README Markdown Display -->
+            <div class="bg-white p-5 rounded-xl border border-slate-200 shadow-sm space-y-3">
+                <h3 class="text-sm font-bold text-slate-800 uppercase">Repository `README.md` Content</h3>
+                <div id="readme-content" class="bg-slate-50 p-4 rounded-lg border border-slate-200 font-mono text-xs text-slate-700 whitespace-pre-wrap select-all"># AutoVal-IB: Investment Banking Valuation & M&amp;A Pitchbook Engine
+
+## 📌 Overview
+**AutoVal-IB** is an automated corporate valuation and transaction advisory dashboard built for Investment Banking analysts. It automates 3-Statement financial data extraction, executes a 3-Stage Discounted Cash Flow (DCF) model, constructs multi-variable valuation sensitivity matrices, performs Trading Comps peer benchmarking, and models M&amp;A Accretion/Dilution deal mechanics.
+
+Designed to align with corporate finance standards used across Global Investment Banking divisions (e.g., Bank of America, Goldman Sachs, J.P. Morgan).
+
+---
+
+## 🛠️ Key Capabilities & Technical Features
+- **Discounted Cash Flow (DCF) Valuation:**
+  - Automated CAPM engine calculating Cost of Equity ($K_e$), Cost of Debt ($K_d$), and tax-shielded Weighted Average Cost of Capital (WACC).
+  - 5-Year Unlevered Free Cash Flow (FCFF) forecast model.
+  - Dual Terminal Value estimation (Perpetual Growth Rate & Exit Multiples).
+  - 2D Sensitivity Matrix assessing intrinsic share price sensitivity across WACC vs Terminal Growth rates.
+- **Comparable Company Analysis (Trading Comps):**
+  - Peer group valuation benchmarking calculating $EV/EBITDA$, $P/E$, and $EV/Revenue$ multiples.
+  - Automated statistical summary (Mean, Median, High, Low) for valuation positioning.
+- **M&A Accretion / Dilution Model:**
+  - Strategic transaction structuring evaluating Cash vs. Equity consideration mixes.
+  - Pro-forma combined net income and EPS reconciliation bridge factoring after-tax interest expense and synergetic cost savings.
+
+---
+
+## 🚀 Installation & Local Setup
+
+```bash
+# Clone repository
+git clone https://github.com/YOUR_USERNAME/AutoVal-IB.git
+cd AutoVal-IB
+
+# Install Python dependencies
+pip install -r requirements.txt
+
+# Run Python Engine
+python dcf_engine.py
+```
+</div>
+            </div>
+        </div>
+
+    </main>
+
+    <!-- Page Footer -->
+    <footer class="bg-slate-900 text-slate-400 py-6 border-t border-slate-800 text-xs">
+        <div class="max-w-7xl mx-auto px-4 text-center space-y-2">
+            <p class="font-medium text-slate-300">AutoVal-IB • Global Investment Banking Portfolio Project</p>
+            <p class="text-slate-500">Built specifically for Bank of America Investment Banking Summer Analyst (2027) Mumbai Role Application.</p>
+        </div>
+    </footer>
+
+    <!-- JavaScript Application Logic -->
+    <script>
+        // --- GLOBAL STATE ---
+        let currentCompany = 'RELIANCE';
+        let compsData = [
+            { id: 1, name: 'Reliance Industries', mcap: 1995000, ev: 2248180, rev: 900000, ebitda: 178000, pe: 25.2 },
+            { id: 2, name: 'Tata Motors', mcap: 345000, ev: 412000, rev: 435000, ebitda: 58000, pe: 11.8 },
+            { id: 3, name: 'Larsen & Toubro', mcap: 490000, ev: 540000, rev: 221000, ebitda: 26500, pe: 34.5 },
+            { id: 4, name: 'Adani Enterprises', mcap: 360000, ev: 410000, rev: 96000, ebitda: 11200, pe: 85.0 }
+        ];
+
+        let compsEbitdaChartObj = null;
+        let compsPeChartObj = null;
+        let maEpsChartObj = null;
+
+        // --- PRESET COMPANY DATA ---
+        const companyPresets = {
+            'RELIANCE': { name: 'Reliance Industries Ltd (NSE: RELIANCE)', price: 2950, rf: 7.1, beta: 1.15, erp: 5.5, fcf0: 42500, growth: 12.5, tg: 4.0, netDebt: 253180, shares: 676 },
+            'TATA': { name: 'Tata Motors Ltd (NSE: TATAMOTORS)', price: 980, rf: 7.1, beta: 1.40, erp: 5.5, fcf0: 18500, growth: 16.0, tg: 3.5, netDebt: 67000, shares: 332 },
+            'INFY': { name: 'Infosys Ltd (NSE: INFY)', price: 1820, rf: 7.1, beta: 0.90, erp: 5.5, fcf0: 24000, growth: 9.5, tg: 4.5, netDebt: -12000, shares: 415 },
+            'CUSTOM': { name: 'Custom Financial Entity', price: 1000, rf: 7.0, beta: 1.0, erp: 5.5, fcf0: 10000, growth: 10.0, tg: 3.0, netDebt: 15000, shares: 100 }
+        };
+
+        // Initialize on DOM load
+        window.onload = function() {
+            updateDCF();
+            renderCompsTable();
+            initCompsCharts();
+            updateMAModel();
+            initMAChart();
+        };
+
+        // --- TAB SWITCHING LOGIC ---
+        function switchTab(tabId) {
+            document.querySelectorAll('.tab-content').forEach(el => el.classList.add('hidden'));
+            document.querySelectorAll('.tab-btn').forEach(el => {
+                el.classList.remove('active');
+                el.classList.add('text-slate-300');
+            });
+
+            document.getElementById(`tab-${tabId}`).classList.remove('hidden');
+            const activeBtn = document.getElementById(`nav-${tabId}`);
+            if(activeBtn) {
+                activeBtn.classList.add('active');
+                activeBtn.classList.remove('text-slate-300');
+            }
+
+            // Trigger chart updates on tab switch
+            if(tabId === 'comps') {
+                setTimeout(updateCompsCharts, 50);
+            } else if(tabId === 'ma') {
+                setTimeout(updateMAChart, 50);
+            }
+        }
+
+        // --- DCF MODEL CALCULATIONS ---
+        function loadPresetCompany(key) {
+            currentCompany = key;
+            const data = companyPresets[key];
+            document.getElementById('target-company-name').innerText = data.name;
+            
+            document.getElementById('input-price').value = data.price;
+            document.getElementById('input-rf').value = data.rf;
+            document.getElementById('input-beta').value = data.beta;
+            document.getElementById('input-erp').value = data.erp;
+            document.getElementById('input-fcf0').value = data.fcf0;
+            document.getElementById('input-growth').value = data.growth;
+            document.getElementById('input-tg').value = data.tg;
+
+            updateDCF();
+        }
+
+        function updateDCF() {
+            // Fetch Slider Values
+            const price = parseFloat(document.getElementById('input-price').value);
+            const rf = parseFloat(document.getElementById('input-rf').value) / 100;
+            const beta = parseFloat(document.getElementById('input-beta').value);
+            const erp = parseFloat(document.getElementById('input-erp').value) / 100;
+            const fcf0 = parseFloat(document.getElementById('input-fcf0').value);
+            const growth = parseFloat(document.getElementById('input-growth').value) / 100;
+            const tg = parseFloat(document.getElementById('input-tg').value) / 100;
+
+            // UI Display updates
+            document.getElementById('val-price').innerText = price.toLocaleString('en-IN');
+            document.getElementById('val-rf').innerText = (rf * 100).toFixed(2) + '%';
+            document.getElementById('val-beta').innerText = beta.toFixed(2);
+            document.getElementById('val-erp').innerText = (erp * 100).toFixed(2) + '%';
+            document.getElementById('val-fcf0').innerText = fcf0.toLocaleString('en-IN');
+            document.getElementById('val-growth').innerText = (growth * 100).toFixed(1) + '%';
+            document.getElementById('val-tg').innerText = (tg * 100).toFixed(2) + '%';
+
+            // 1. CAPM Cost of Equity
+            const ke = rf + (beta * erp);
+            // Capital structure assumption
+            const wacc = ke * 0.82 + (0.08 * 0.75) * 0.18; // Weighted with debt shield
+
+            document.getElementById('calc-ke').innerText = (ke * 100).toFixed(2) + '%';
+            document.getElementById('calc-wacc').innerText = (wacc * 100).toFixed(2) + '%';
+
+            // 2. 5-Year Cash Flow Calculations
+            const fcfs = [];
+            const pvFcfs = [];
+            let totalPvFcf = 0;
+
+            const tbody = document.getElementById('dcf-table-body');
+            tbody.innerHTML = '';
+
+            for(let i = 1; i <= 5; i++) {
+                const fcf = fcf0 * Math.pow(1 + growth, i);
+                const df = 1 / Math.pow(1 + wacc, i);
+                const pv = fcf * df;
+                fcfs.push(fcf);
+                pvFcfs.push(pv);
+                totalPvFcf += pv;
+            }
+
+            // Terminal Value
+            const terminalFCF = fcfs[4] * (1 + tg);
+            const terminalValue = terminalFCF / (wacc - tg);
+            const pvTerminalValue = terminalValue / Math.pow(1 + wacc, 5);
+
+            const enterpriseValue = totalPvFcf + pvTerminalValue;
+            const presetNetDebt = companyPresets[currentCompany] ? companyPresets[currentCompany].netDebt : 50000;
+            const presetShares = companyPresets[currentCompany] ? companyPresets[currentCompany].shares : 500;
+
+            const equityValue = enterpriseValue - presetNetDebt;
+            const impliedSharePrice = equityValue / presetShares;
+
+            // Populate Table
+            let rowFCF = `<tr><td class="py-2 px-3 font-semibold text-slate-700">Unlevered FCF (FCFF)</td>`;
+            let rowPV = `<tr class="bg-slate-50/50"><td class="py-2 px-3 text-slate-500">PV of Cash Flow</td>`;
+
+            for(let i = 0; i < 5; i++) {
+                rowFCF += `<td class="py-2 px-3 text-right">₹ ${Math.round(fcfs[i]).toLocaleString('en-IN')}</td>`;
+                rowPV += `<td class="py-2 px-3 text-right text-slate-600">₹ ${Math.round(pvFcfs[i]).toLocaleString('en-IN')}</td>`;
+            }
+
+            rowFCF += `<td class="py-2 px-3 text-right bg-slate-200/50 font-bold">₹ ${Math.round(terminalValue).toLocaleString('en-IN')}</td></tr>`;
+            rowPV += `<td class="py-2 px-3 text-right bg-slate-200/50 font-bold text-bofa-navy">₹ ${Math.round(pvTerminalValue).toLocaleString('en-IN')}</td></tr>`;
+
+            tbody.innerHTML = rowFCF + rowPV;
+
+            // Update Headline Summary Cards
+            document.getElementById('card-ev').innerText = `₹ ${Math.round(enterpriseValue).toLocaleString('en-IN')} Cr`;
+            document.getElementById('card-eq-val').innerText = `₹ ${Math.round(equityValue).toLocaleString('en-IN')} Cr`;
+            document.getElementById('card-implied-price').innerText = `₹ ${Math.round(impliedSharePrice).toLocaleString('en-IN')}`;
+            document.getElementById('card-curr-price').innerText = `₹ ${price.toLocaleString('en-IN')}`;
+
+            const upside = ((impliedSharePrice - price) / price) * 100;
+            const badge = document.getElementById('upside-badge');
+            if(upside >= 0) {
+                badge.innerText = `+${upside.toFixed(1)}% Upside`;
+                badge.className = "px-2 py-0.5 rounded text-[10px] font-bold bg-emerald-100 text-emerald-800 border border-emerald-300";
+            } else {
+                badge.innerText = `${upside.toFixed(1)}% Downside`;
+                badge.className = "px-2 py-0.5 rounded text-[10px] font-bold bg-rose-100 text-rose-800 border border-rose-300";
+            }
+
+            // Render Sensitivity Heatmap
+            renderSensitivityMatrix(wacc, tg, fcf0, growth, presetNetDebt, presetShares);
+        }
+
+        function renderSensitivityMatrix(baseWacc, baseTg, fcf0, growth, netDebt, shares) {
+            const waccSteps = [-0.01, -0.005, 0, 0.005, 0.01];
+            const tgSteps = [-0.01, -0.005, 0, 0.005, 0.01];
+
+            const headerRow = document.getElementById('sensitivity-header');
+            const tbody = document.getElementById('sensitivity-body');
+
+            headerRow.innerHTML = `<th class="p-2 text-left bg-slate-100 text-slate-500 font-semibold">WACC \\ Terminal g</th>`;
+            tgSteps.forEach(s => {
+                const gVal = (baseTg + s) * 100;
+                headerRow.innerHTML += `<th class="p-2 bg-slate-100 text-slate-700 font-bold text-center">${gVal.toFixed(2)}%</th>`;
+            });
+
+            tbody.innerHTML = '';
+
+            waccSteps.forEach(wStep => {
+                const currentWacc = baseWacc + wStep;
+                let tr = `<tr><td class="p-2 bg-slate-100 font-bold text-slate-700 text-left">${(currentWacc * 100).toFixed(2)}%</td>`;
+
+                tgSteps.forEach(gStep => {
+                    const currentTg = baseTg + gStep;
+
+                    // Quick DCF calculation
+                    let pvSum = 0;
+                    for(let i = 1; i <= 5; i++) {
+                        pvSum += (fcf0 * Math.pow(1 + growth, i)) / Math.pow(1 + currentWacc, i);
+                    }
+                    const fcf5 = fcf0 * Math.pow(1 + growth, 5);
+                    const tv = (fcf5 * (1 + currentTg)) / (currentWacc - currentTg);
+                    const pvTv = tv / Math.pow(1 + currentWacc, 5);
+
+                    const ev = pvSum + pvTv;
+                    const price = Math.round((ev - netDebt) / shares);
+
+                    const isBase = (wStep === 0 && gStep === 0);
+                    const cellBg = isBase ? 'bg-bofa-red text-white font-extrabold ring-2 ring-bofa-navy' : 'bg-slate-50 hover:bg-slate-200 text-slate-800';
+
+                    tr += `<td class="p-2 ${cellBg} border border-slate-200">${price.toLocaleString('en-IN')}</td>`;
+                });
+
+                tr += `</tr>`;
+                tbody.innerHTML += tr;
+            });
+        }
+
+        // --- TRADING COMPS LOGIC ---
+        function renderCompsTable() {
+            const tbody = document.getElementById('comps-tbody');
+            tbody.innerHTML = '';
+
+            let totalEvEbitda = 0;
+            let totalPe = 0;
+
+            compsData.forEach((item) => {
+                const evRev = (item.ev / item.rev).toFixed(2);
+                const evEbitda = (item.ev / item.ebitda).toFixed(1);
+
+                totalEvEbitda += parseFloat(evEbitda);
+                totalPe += item.pe;
+
+                tbody.innerHTML += `
+                    <tr>
+                        <td class="py-2.5 px-3 font-semibold text-slate-800">${item.name}</td>
+                        <td class="py-2.5 px-3 text-right">₹ ${item.mcap.toLocaleString('en-IN')}</td>
+                        <td class="py-2.5 px-3 text-right">₹ ${item.ev.toLocaleString('en-IN')}</td>
+                        <td class="py-2.5 px-3 text-right">₹ ${item.rev.toLocaleString('en-IN')}</td>
+                        <td class="py-2.5 px-3 text-right">₹ ${item.ebitda.toLocaleString('en-IN')}</td>
+                        <td class="py-2.5 px-3 text-right bg-blue-50/50 font-bold">${evRev}x</td>
+                        <td class="py-2.5 px-3 text-right bg-blue-50/50 font-bold text-bofa-navy">${evEbitda}x</td>
+                        <td class="py-2.5 px-3 text-right bg-emerald-50/50 font-bold text-emerald-800">${item.pe.toFixed(1)}x</td>
+                        <td class="py-2.5 px-3 text-center">
+                            <button onclick="removePeer(${item.id})" class="text-rose-500 hover:text-rose-700 text-xs"><i class="fa-solid fa-trash"></i></button>
+                        </td>
+                    </tr>
+                `;
+            });
+
+            // Summary Stats
+            const meanEbitda = (totalEvEbitda / compsData.length).toFixed(1);
+            const meanPe = (totalPe / compsData.length).toFixed(1);
+
+            document.getElementById('comps-tfoot').innerHTML = `
+                <tr>
+                    <td class="py-2.5 px-3">Peer Group Median / Average</td>
+                    <td colspan="4" class="text-right text-slate-500 font-normal">Statistical Benchmark</td>
+                    <td class="py-2.5 px-3 text-right bg-blue-100/60">-</td>
+                    <td class="py-2.5 px-3 text-right bg-blue-100/60 text-bofa-navy">${meanEbitda}x</td>
+                    <td class="py-2.5 px-3 text-right bg-emerald-100/60 text-emerald-900">${meanPe}x</td>
+                    <td></td>
+                </tr>
+            `;
+
+            updateCompsCharts();
+        }
+
+        function addPeerRow() {
+            const newId = compsData.length + 1;
+            compsData.push({ id: newId, name: `Peer Company ${newId}`, mcap: 250000, ev: 280000, rev: 110000, ebitda: 21000, pe: 22.0 });
+            renderCompsTable();
+        }
+
+        function removePeer(id) {
+            compsData = compsData.filter(item => item.id !== id);
+            renderCompsTable();
+        }
+
+        function initCompsCharts() {
+            const ctx1 = document.getElementById('compsEbitdaChart').getContext('2d');
+            compsEbitdaChartObj = new Chart(ctx1, {
+                type: 'bar',
+                data: { labels: [], datasets: [{ label: 'EV / EBITDA Multiple', data: [], backgroundColor: '#0C2340' }] },
+                options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { display: false } } }
+            });
+
+            const ctx2 = document.getElementById('compsPeChart').getContext('2d');
+            compsPeChartObj = new Chart(ctx2, {
+                type: 'bar',
+                data: { labels: [], datasets: [{ label: 'P / E Multiple', data: [], backgroundColor: '#059669' }] },
+                options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { display: false } } }
+            });
+        }
+
+        function updateCompsCharts() {
+            if(!compsEbitdaChartObj || !compsPeChartObj) return;
+
+            const labels = compsData.map(c => c.name);
+            const ebitdaMultiples = compsData.map(c => (c.ev / c.ebitda).toFixed(1));
+            const peMultiples = compsData.map(c => c.pe);
+
+            compsEbitdaChartObj.data.labels = labels;
+            compsEbitdaChartObj.data.datasets[0].data = ebitdaMultiples;
+            compsEbitdaChartObj.update();
+
+            compsPeChartObj.data.labels = labels;
+            compsPeChartObj.data.datasets[0].data = peMultiples;
+            compsPeChartObj.update();
+        }
+
+        // --- M&A MODEL CALCULATIONS ---
+        function updateMAModel() {
+            const acqNI = parseFloat(document.getElementById('ma-acq-ni').value);
+            const acqShares = parseFloat(document.getElementById('ma-acq-shares').value);
+            const acqPrice = parseFloat(document.getElementById('ma-acq-price').value);
+
+            const tgtNI = parseFloat(document.getElementById('ma-tgt-ni').value);
+            const tgtVal = parseFloat(document.getElementById('ma-tgt-val').value);
+
+            const premium = parseFloat(document.getElementById('input-ma-premium').value) / 100;
+            const cashMix = parseFloat(document.getElementById('input-ma-cashmix').value) / 100;
+            const debtRate = parseFloat(document.getElementById('input-ma-debt-rate').value) / 100;
+            const synergies = parseFloat(document.getElementById('input-ma-synergies').value);
+
+            // Update Labels
+            document.getElementById('val-ma-premium').innerText = (premium * 100).toFixed(1) + '%';
+            document.getElementById('val-ma-cashmix').innerText = `${(cashMix * 100).toFixed(0)}% Cash / ${((1 - cashMix) * 100).toFixed(0)}% Stock`;
+            document.getElementById('val-ma-debt-rate').innerText = (debtRate * 100).toFixed(2) + '%';
+            document.getElementById('val-ma-synergies').innerText = `₹ ${synergies.toLocaleString('en-IN')} Cr`;
+
+            const standaloneEPS = acqNI / acqShares;
+            document.getElementById('ma-acq-eps').value = `₹ ${standaloneEPS.toFixed(2)}`;
+
+            // Deal Economics
+            const purchasePrice = tgtVal * (1 + premium);
+            const cashRequired = purchasePrice * cashMix;
+            const stockRequired = purchasePrice * (1 - cashMix);
+
+            const newInterestExpense = cashRequired * debtRate;
+            const afterTaxInterest = newInterestExpense * (1 - 0.25); // Tax shield
+
+            const afterTaxSynergies = synergies * (1 - 0.25);
+
+            // Pro-Forma Combined Net Income
+            const combinedNI = acqNI + tgtNI + afterTaxSynergies - afterTaxInterest;
+
+            // New Shares Issued for Stock Component
+            const newSharesIssued = stockRequired / acqPrice;
+            const combinedShares = acqShares + newSharesIssued;
+
+            const combinedEPS = combinedNI / combinedShares;
+            const epsImpactPct = ((combinedEPS - standaloneEPS) / standaloneEPS) * 100;
+
+            // Update Reconciliation Bridge
+            document.getElementById('ma-bridge-acq-ni').innerText = `₹ ${Math.round(acqNI).toLocaleString('en-IN')} Cr`;
+            document.getElementById('ma-bridge-tgt-ni').innerText = `+ ₹ ${Math.round(tgtNI).toLocaleString('en-IN')} Cr`;
+            document.getElementById('ma-bridge-syn').innerText = `+ ₹ ${Math.round(afterTaxSynergies).toLocaleString('en-IN')} Cr`;
+            document.getElementById('ma-bridge-interest').innerText = `- ₹ ${Math.round(afterTaxInterest).toLocaleString('en-IN')} Cr`;
+            document.getElementById('ma-bridge-combined-ni').innerText = `₹ ${Math.round(combinedNI).toLocaleString('en-IN')} Cr`;
+            document.getElementById('ma-bridge-shares').innerText = `${combinedShares.toFixed(1)} Cr Shares`;
+            document.getElementById('ma-bridge-final-eps').innerText = `₹ ${combinedEPS.toFixed(2)} vs ₹ ${standaloneEPS.toFixed(2)}`;
+
+            // Update Banner Visual
+            const banner = document.getElementById('ma-result-banner');
+            const title = document.getElementById('ma-verdict-title');
+            const desc = document.getElementById('ma-verdict-desc');
+            const pctDisplay = document.getElementById('ma-eps-pct');
+
+            if(epsImpactPct >= 0) {
+                banner.className = "p-5 rounded-xl border-2 bg-emerald-50 border-emerald-500 shadow-sm flex items-center justify-between";
+                title.className = "text-2xl font-extrabold text-emerald-950 mt-1";
+                title.innerText = "ACCRETIVE TRANSACTION";
+                desc.className = "text-xs text-emerald-800 mt-1";
+                desc.innerText = "Post-merger Earnings Per Share increases due to cost synergies and optimal cash/stock consideration mix.";
+                pctDisplay.className = "text-3xl font-extrabold font-mono text-emerald-700";
+                pctDisplay.innerText = `+${epsImpactPct.toFixed(2)}%`;
+            } else {
+                banner.className = "p-5 rounded-xl border-2 bg-rose-50 border-rose-500 shadow-sm flex items-center justify-between";
+                title.className = "text-2xl font-extrabold text-rose-950 mt-1";
+                title.innerText = "DILUTIVE TRANSACTION";
+                desc.className = "text-xs text-rose-800 mt-1";
+                desc.innerText = "Transaction reduces pro-forma EPS. Consider increasing equity mix or negotiating higher synergetic cost reductions.";
+                pctDisplay.className = "text-3xl font-extrabold font-mono text-rose-700";
+                pctDisplay.innerText = `${epsImpactPct.toFixed(2)}%`;
+            }
+
+            updateMAChart(standaloneEPS, combinedEPS);
+        }
+
+        function initMAChart() {
+            const ctx = document.getElementById('maEpsChart').getContext('2d');
+            maEpsChartObj = new Chart(ctx, {
+                type: 'bar',
+                data: {
+                    labels: ['Standalone Acquirer EPS', 'Pro-Forma Combined EPS'],
+                    datasets: [{ label: 'EPS (₹)', data: [116.86, 122.20], backgroundColor: ['#0C2340', '#059669'] }]
+                },
+                options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { display: false } } }
+            });
+        }
+
+        function updateMAChart(standalone = 116.86, combined = 122.20) {
+            if(!maEpsChartObj) return;
+            maEpsChartObj.data.datasets[0].data = [standalone.toFixed(2), combined.toFixed(2)];
+            maEpsChartObj.data.datasets[0].backgroundColor = [
+                '#0C2340',
+                combined >= standalone ? '#059669' : '#D6001C'
+            ];
+            maEpsChartObj.update();
+        }
+
+        function copyToClipboard(elementId) {
+            const text = document.getElementById(elementId).innerText;
+            const textarea = document.createElement('textarea');
+            textarea.value = text;
+            document.body.appendChild(textarea);
+            textarea.select();
+            document.execCommand('copy');
+            document.body.removeChild(textarea);
+            alert('Repository README content copied to clipboard successfully!');
+        }
+
+        function exportSummaryPDF() {
+            alert('Exporting Investment Banking Pitchbook Summary Report (PDF)...');
+        }
+    </script>
+</body>
+</html>
